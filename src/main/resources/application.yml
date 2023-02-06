@@ -1,0 +1,355 @@
+
+server:
+  port: 8080
+  compression:
+    enabled: true
+    min-response-size: 2048
+    mime-types: application/vnd.ddc.mm-v1.0.0+json, application/vnd.ddc.mm-v2.0.0+json, application/vnd.ddc.mm-v3.0.0+json, application/vnd.ddc.mm-v3.1.0+json, application/vnd.ddc.mm-v4.0.0+json
+management:
+  endpoints:
+    web:
+      base-path: /management
+      exposure:
+        include:
+          - health
+          - info
+          - configprops
+          - env
+          - metrics
+          - threaddump
+          - httptrace
+  endpoint:
+    health:
+      show-details: ALWAYS
+  health:
+    mail:
+      enabled: false
+spring:
+  application:
+    name: mm-bootstrap
+  cloud:
+    consul:
+      discovery:
+        prefer-ip-address: true
+        healthCheckPath: /management/health
+        instanceId: mm-bootstrap:${spring.application.instance-id:${random.value}}
+  datasource:
+    url: jdbc:h2:mem:test;MODE=Oracle
+    hikari:
+      leak-detection-threshold: 60000
+      idle-timeout: 10000
+      maximum-pool-size: 10
+      minimum-idle: 5
+      pool-name: mmbootstrapHkariPool
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+      write-bigdecimal-as-plain: true
+    deserialization:
+      accept-empty-string-as-null-object: true
+      accept-empty-array-as-null-object: true
+  mvc:
+    throw-exception-if-no-handler-found: false
+    pathmatch:
+      matching-strategy: ant_path_matcher
+  jpa:
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate.jdbc.time_zone: America/Chicago # overridden by converter
+      hibernate.id.new_generator_mappings: true
+      #      hibernate.connection.provider_disables_autocommit: true
+      #      hibernate.cache.use_second_level_cache: true
+      hibernate.cache.use_query_cache: false
+      hibernate.generate_statistics: true
+      # modify batch size as necessary
+      hibernate.jdbc.batch_size: 25
+      hibernate.order_inserts: true
+      hibernate.order_updates: true
+      # modify fetch size as necessary
+      hibernate.jdbc.fetch_size: 150
+      hibernate.criteria.literal_handling_mode: BIND
+      # Re-enable to catch HHH000104 https://vladmihalcea.com/fix-hibernate-hhh000104-entity-fetch-pagination-warning-message/
+      #      hibernate.query.fail_on_pagination_over_collection_fetch: true
+      hibernate.query.in_clause_parameter_padding: true
+    hibernate:
+      ddl-auto: none
+  liquibase:
+    contexts: dev
+  messages:
+    basename: i18n/messages
+  main:
+    allow-bean-definition-overriding: true
+    allow-circular-references: true
+
+security:
+  oauth2:
+    client:
+      access-token-uri: http://test.api.dallas.dairy.com/uaa/oauth/token
+      user-authorization-uri: http://test.api.dallas.dairy.com/uaa/oauth/authorize
+      client-id: mmweb
+      client-secret: password
+      grant-type: client_credentials
+      access-token-validity-seconds: 43200
+    resource:
+      jwt:
+        # Tells the JWT framework to fetch the public key from the authorization server during startup
+        # Note: The authorization server needs to be running...
+        # key-uri: "http://localhost:8069/uaa/oauth/token_key"
+        key-value: |
+          -----BEGIN PUBLIC KEY-----
+          MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDNQZKqTlO/+2b4ZdhqGJzGBDlt
+          b5PZmBz1ALN2YLvt341pH6i5mO1V9cX5Ty1LM70fKfnIoYUP4KCE33dPnC7LkUwE
+          /myh1zM6m8cbL5cYFPyP099thbVxzJkjHWqywvQih/qOOjliomKbM9pxG8Z1dB26
+          hL9dSAZuA8xExjlPmQIDAQAB
+          -----END PUBLIC KEY-----
+
+hystrix.command.default.execution.isolation.thread.timeoutInMilliseconds: 120000
+logging:
+  level:
+    com.netflix: INFO
+    io.logz.sender.com.bluejeans.common: INFO
+    com.dairy.mobilemanifest.interfaces.webservices.MdmInterface: DEBUG
+---
+
+spring:
+  config:
+    activate:
+      on-profile: dev
+  cloud:
+    consul:
+      host: docker1
+      port: 8590
+  datasource:
+    url: jdbc:p6spy:oracle:thin:@db1:1521:dairydev
+    driver-class-name: com.p6spy.engine.spy.P6SpyDriver
+  jpa:
+    show-sql: false
+  thymeleaf:
+    cache: false
+server:
+  port: 8075
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: tony
+  datasource:
+    url: jdbc:p6spy:oracle:thin:@db1:1521:dairytst
+    username: mmas2
+    password: mmas2
+  jpa:
+    show-sql: true
+    hibernate.ddl-auto: none
+  cloud:
+    consul:
+      discovery:
+        default-query-tag: tony
+        tags:
+          - tony
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: test
+  datasource:
+    url: jdbc:oracle:thin:@db1:1521:dairytst
+  jpa:
+    hibernate.ddl-auto: none
+    show-sql: true
+  cloud:
+    consul:
+      discovery:
+        prefer-ip-address: true
+  liquibase:
+    contexts: test
+
+---
+spring:
+  config:
+    activate:
+      on-profile: as1
+  datasource:
+    username: mmas1
+    password: mmas1
+security:
+  oauth2:
+    client:
+      access-token-uri: http://as1.api.dallas.dairy.com/uaa/oauth/token
+      user-authorization-uri: http://as1.api.dallas.dairy.com/uaa/oauth/authorize
+      client-id: mmweb
+      client-secret: password
+
+---
+spring:
+  config:
+    activate:
+      on-profile: as2
+  datasource:
+    username: mmas2
+    password: mmas2
+security:
+  oauth2:
+    client:
+      access-token-uri: http://as2.api.dallas.dairy.com/uaa/oauth/token
+      user-authorization-uri: http://as2.api.dallas.dairy.com/uaa/oauth/authorize
+      client-id: mmweb
+      client-secret: password
+---
+spring:
+  config:
+    activate:
+      on-profile: as5
+  datasource:
+    username: mmas5
+    password: mmas5
+security:
+  oauth2:
+    client:
+      access-token-uri: http://as5.api.dallas.dairy.com/uaa/oauth/token
+      user-authorization-uri: http://as5.api.dallas.dairy.com/uaa/oauth/authorize
+      client-id: mmweb
+      client-secret: password
+---
+spring:
+  config:
+    activate:
+      on-profile: as7
+  datasource:
+    username: mmas7
+    password: mmas7
+security:
+  oauth2:
+    client:
+      access-token-uri: http://as7.api.dallas.dairy.com/uaa/oauth/token
+      user-authorization-uri: http://as7.api.dallas.dairy.com/uaa/oauth/authorize
+      client-id: mmweb
+      client-secret: password
+
+---
+spring:
+  config:
+    activate:
+      on-profile: int1
+  datasource:
+    username: mmint1
+    password: mmint1
+    url: jdbc:oracle:thin:@db1:1521:dairytst
+security:
+  oauth2:
+    client:
+      access-token-uri: http://uaa:9999/oauth/token
+      user-authorization-uri: http://uaa:9999/oauth/authorize
+      client-id: mmweb
+      client-secret: password
+---
+
+spring:
+  config:
+    activate:
+      on-profile: intdfa
+  datasource:
+    username: mmintdfa
+    password: mmintdfa
+    url: jdbc:oracle:thin:@db1:1521:dairytst
+security:
+  oauth2:
+    client:
+      access-token-uri: http://uaa:9999/oauth/token
+      user-authorization-uri: http://uaa:9999/oauth/authorize
+      client-id: mmweb
+      client-secret: password
+
+---
+spring:
+  config:
+    activate:
+      on-profile: demo
+  liquibase:
+    contexts: demo
+  datasource:
+    url: jdbc:oracle:thin:@db1:1521:dairytst
+    username: mm2demo
+    password: mm2demo
+security:
+  oauth2:
+    client:
+      access-token-uri: http://demo.api.dallas.dairy.com/uaa/oauth/token
+      user-authorization-uri: http://demo.api.dallas.dairy.com/uaa/oauth/authorize
+      client-id: mmweb
+      client-secret: password
+
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: staging
+  liquibase:
+    contexts: staging
+  datasource:
+    url: jdbc:oracle:thin:@stdb1:1521:dairystg
+    username: mm2adm
+    password: mm2adm
+security:
+  oauth2:
+    client:
+      access-token-uri: http://staging.api.dallas.dairy.com/uaa/oauth/token
+      user-authorization-uri: http://demo.api.dallas.dairy.com/uaa/oauth/authorize
+      client-id: mmweb
+      client-secret: password
+
+---
+spring:
+  config:
+    activate:
+      on-profile: uat1
+  datasource:
+    username: mmuat1
+    password: mmuat1
+security:
+  oauth2:
+    client:
+      access-token-uri: http://uat.api.dallas.dairy.com/oauth/token
+      user-authorization-uri: http://uat.api.dallas.dairy.com/uaa/oauth/authorize
+      client-id: mmweb
+      client-secret: password
+---
+
+spring:
+  config:
+    activate:
+      on-profile: prod
+  liquibase:
+    contexts: prod
+  datasource:
+    url: jdbc:oracle:thin:@pdb1:1521:dairyprd
+    username: mm2adm
+    password: mm2adm
+    hikari:
+      maximum-pool-size: 50
+  jpa:
+    show-sql: false
+    properties:
+      hibernate.generate_statistics: false
+dairy:
+  logging:
+    logstash:
+      enabled: true
+      host: https://listener.logz.io:8071
+      queueSize: 512
+      token: QPrQSDHpXRjQievVUazfujfszGKfHRZv
+      logType: mm-bootstrap-prod
+security:
+  oauth2:
+    client:
+      access-token-uri: http://gateway:8080/uaa/oauth/token
+      user-authorization-uri: http://gateway:8080/uaa/oauth/authorize
+      client-id: mmweb
+      client-secret: password
+      grant-type: client_credentials
